@@ -82,13 +82,13 @@ def annotate(example):
                     for completion in deepcopy(example["completions"])]
 
     for aspect in aspects:
-        if subset == "truthful_qa":
-            world_knowledge = "\n".join(["a subset of correct answers: " + str(example["correct_answers"]), 
-                                         "a subset of incorrect_answers: " + str(example["incorrect_answers"])])
-        elif subset == "false_qa":
+        if subset == "false_qa":
             world_knowledge = "The question is based on a false promise."
         elif subset == "flan":
             world_knowledge = example["correct_answers"]
+        elif subset == "truthful_qa":
+            world_knowledge = "\n".join(["a subset of correct answers: " + str(example["correct_answers"]), 
+                                         "a subset of incorrect_answers: " + str(example["incorrect_answers"])])
         else:
             world_knowledge = "No additional world knowledge for reference."
 
@@ -104,11 +104,11 @@ def annotate(example):
             if count == SHUFLLE_NUM:
                 break
         print(random_orders)
-        for order in random_orders:        
+        for order in random_orders:
             format_input = {"instruction": example["instruction"]}
             format_input.update({f"text_{i+1}": example["completions"][o]["response"] for i, o in enumerate(order)})
             if aspect == "truthfulness":
-                format_input.update({"world_knowledge": world_knowledge})
+                format_input["world_knowledge"] = world_knowledge
 
             responses = get_eval(system_prompt, user_prompt=TEMPLATE[aspect].format(**format_input))
             for i in range(10):
@@ -150,13 +150,12 @@ if __name__ == "__main__":
         with open(os.path.join("../comparison_data_generation", "completion_data", subset + ".json"), "r") as f:
             dataset = json.load(f)
         dataset = pd.DataFrame(dataset)
-        
-        # dataset = dataset.map(annotate)
-        dataset_dict = []
-        for data in tqdm(dataset, total=len(dataset), desc="Annotating"):
-            dataset_dict.append(annotate(data))
 
+        dataset_dict = [
+            annotate(data)
+            for data in tqdm(dataset, total=len(dataset), desc="Annotating")
+        ]
         os.makedirs("annotation", exist_ok=True)
         result_path = os.path.join("annotation", subset + "_annotated.json")
         with open(result_path, "w") as f:
-            json.dump([{k: v for k, v in data.items()} for data in dataset_dict], f, indent=4)
+            json.dump([dict(data.items()) for data in dataset_dict], f, indent=4)

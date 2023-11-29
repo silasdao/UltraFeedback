@@ -131,13 +131,15 @@ def sample_principle(example):
     if "ultralm" in model_type:
         system_prompt = "User: A one-turn chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, very detailed, and polite answers to the user's questions.</s>"
         system_prompt += "User: " + principle_prompt + "</s>"
-        conv = [system_prompt]
-        conv.append("User: " + example["instruction"] + "</s>")
-        conv.append("Assistant: ")
+        conv = [
+            system_prompt,
+            "User: " + example["instruction"] + "</s>",
+            "Assistant: ",
+        ]
         prompt = "\n".join(conv)
     elif model_type == "wizardlm-7b":
         conv = conv_template[model_type.split("-")[0]].copy()
-        prompt = "{}\n\n### Response:".format(example["instruction"])
+        prompt = f'{example["instruction"]}\n\n### Response:'
     elif model_type.split("-")[0] in ["llama", "alpaca", "vicuna", "mpt", "falcon", "wizardlm"]: # note that the wizardlm should be 13b or 30b
         conv = conv_template[model_type.split("-")[0]].copy()
         conv.system += " " + principle_prompt
@@ -146,15 +148,15 @@ def sample_principle(example):
         prompt = conv.get_prompt()
     else:
         raise NotImplementedError
-    
+
     example["completions"].append({
         "model": model_type,
         "principle": principle,
         "custom_system_prompt": principle_prompt,
     })
-    
+
     example["prompt"] = prompt
-    
+
     return example
 
 
@@ -229,4 +231,4 @@ if __name__ == "__main__":
 
         result_path = load_path
         with open(result_path, "w") as f:
-            json.dump([{k: v for k, v in data.items()} for data in dataset_dict], f, indent=4)
+            json.dump([dict(data.items()) for data in dataset_dict], f, indent=4)

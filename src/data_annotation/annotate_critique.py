@@ -63,7 +63,6 @@ def get_eval(model, sys_prompt, user_prompt):
             raise e
         except Exception as e:
             print(e)
-            pass
     raise Exception("API Error")
 
 
@@ -93,11 +92,11 @@ if __name__ == "__main__":
         dataset = pd.DataFrame(dataset)
         dataset = datasets.Dataset.from_pandas(dataset)
 
-        dataset_dict = []
-        for data in tqdm(dataset, total=len(dataset), desc="Annotating"):
-            dataset_dict.append(annotate(data))
-
+        dataset_dict = [
+            annotate(data)
+            for data in tqdm(dataset, total=len(dataset), desc="Annotating")
+        ]
         os.makedirs("annotation", exist_ok=True)
         result_path = os.path.join("annotation", subset + ".json")
         with open(result_path, "w") as f:
-            json.dump([{k: v for k, v in data.items()} for data in dataset_dict], f, indent=4)
+            json.dump([dict(data.items()) for data in dataset_dict], f, indent=4)

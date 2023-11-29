@@ -22,4 +22,4 @@ if __name__ == "__main__":
         dataset = dataset.map(lambda x: {"models": random.sample(model_pool, 1), "completions": []}, desc=subset)
 
         with open(f"./completion_data/{subset}.json", "w") as f:
-                json.dump([{k: v for k, v in data.items()} for data in dataset], f, indent=4)
+            json.dump([dict(data.items()) for data in dataset], f, indent=4)

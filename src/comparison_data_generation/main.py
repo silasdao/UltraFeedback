@@ -140,13 +140,12 @@ def load_generator(model_type):
 
         if model_type == "starchat":
             generator = pipeline("text-generation", model=ckpt, tokenizer=ckpt, torch_dtype=torch.bfloat16, device_map="auto")
-        else: # llama-series
-            if model_type in ["mpt-30b-chat", "falcon-40b-instruct"]:
-                generator = pipeline(model=ckpt, tokenizer=ckpt, device_map="auto", trust_remote_code=True)
-            else:
-                model = LlamaForCausalLM.from_pretrained(ckpt, device_map="auto")
-                tokenizer = LlamaTokenizer.from_pretrained(ckpt)
-                generator = pipeline("text-generation", model=model, tokenizer=tokenizer)
+        elif model_type in ["mpt-30b-chat", "falcon-40b-instruct"]:
+            generator = pipeline(model=ckpt, tokenizer=ckpt, device_map="auto", trust_remote_code=True)
+        else:
+            model = LlamaForCausalLM.from_pretrained(ckpt, device_map="auto")
+            tokenizer = LlamaTokenizer.from_pretrained(ckpt)
+            generator = pipeline("text-generation", model=model, tokenizer=tokenizer)
     print("model loaded")
     return generator
 
@@ -158,7 +157,7 @@ def instruction_completion(example):
 
     if model_type not in example["models"]:
         return example
-    
+
     # set principle
     if subset in ["sharegpt"]:
         principle = random.choice(["helpfulness", "helpfulness", "helpfulness", "truthfulness", "honesty"])
@@ -183,18 +182,22 @@ def instruction_completion(example):
     if "ultralm" in model_type:
         system_prompt = "User: A one-turn chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, very detailed, and polite answers to the user's questions.</s>"
         system_prompt += "User: " + principle_prompt + "</s>"
-        conv = [system_prompt]
-        conv.append("User: " + example["instruction"] + "</s>")
-        conv.append("Assistant: ")
+        conv = [
+            system_prompt,
+            "User: " + example["instruction"] + "</s>",
+            "Assistant: ",
+        ]
         prompt = "\n".join(conv)
     elif "starchat" in model_type:
         system_prompt = "<|system|>" + principle_prompt + "<|end|>"
-        conv = [system_prompt]
-        conv.append("<|user|>" + example["instruction"] + "<|end|>")
-        conv.append("<|assistant|>")
+        conv = [
+            system_prompt,
+            "<|user|>" + example["instruction"] + "<|end|>",
+            "<|assistant|>",
+        ]
         prompt = "\n".join(conv)
     elif model_type == "wizardlm-7b":
-        prompt = "{}\n\n### Response:".format(example["instruction"])
+        prompt = f'{example["instruction"]}\n\n### Response:'
     elif model_type.split("-")[0] in ["llama", "alpaca", "vicuna", "mpt", "falcon", "wizardlm"]: # note that the wizardlm should be 13b or 30b
         conv = conv_template[model_type.split("-")[0]].copy()
         conv.system += " " + principle_prompt
@@ -218,7 +221,7 @@ def instruction_completion(example):
         "custom_system_prompt": principle_prompt,
         "response": response
     })
-    
+
     return example
 
 
@@ -246,7 +249,7 @@ if __name__ == "__main__":
         load_path = f"./completion_data/{subset}.json"
         dataset = json.load(open(load_path))
         dataset = datasets.Dataset.from_pandas(pd.DataFrame(dataset)).select(range(id*2000, min((id+1)*2000, len(dataset))))
-        
+
         print("start mapping")
         dataset = dataset.map(instruction_completion, desc=f"{model_type} on {subset}")
 
@@ -254,4 +257,4 @@ if __name__ == "__main__":
         result_path = load_path
         os.makedirs(result_path, exist_ok=True)
         with open(result_path, "w") as f:
-            json.dump([{k: v for k, v in data.items()} for data in dataset], f, indent=4)
+            json.dump([dict(data.items()) for data in dataset], f, indent=4)
